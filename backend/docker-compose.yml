@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  django_geo_test_db:
+    restart: always
+    image: pgrouting/pgrouting
+    volumes:
+      - ./db:/var/lib/postgresql/data/
+    ports:
+      - "54035:5432"
+    networks:
+      - django_geo_test_network
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=${DB_HOST}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+
+  django_geo_test_web:
+    restart: always
+    build: ./src
+    networks:
+      - django_geo_test_network
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./src:/src
+      - ./src/django_geo_test:/src/django_geo_test
+      - ./src/static:/src/static
+      - ./src/media:/src/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - django_geo_test_db
+
+  geoserver:
+    image: kartoza/geoserver
+    environment:
+      - GEOSERVER_ADMIN_PASSWORD=geoserver
+    ports:
+      - "8080:8080"
+    volumes:
+      - geoserver_data:/opt/geoserver/data_dir
+  qgis-server:
+    image: camptocamp/qgis-server
+    volumes:
+      - ./qgisserver:/etc/qgisserver/
+    restart: always
+    ports:
+      - "5001:80"
+    environment:
+      - QGIS_PROJECT_FILE=/etc/qgisserver/project.qgz
+      - QGIS_SERVER_LANDING_PAGE_PROJECTS_DIRECTORIES=/etc/qgisserver/
+    depends_on:
+      - django_geo_test_db
+
+  #  qgis-server:
+#    restart: always
+#    image: kartoza/qgis-server:3.0.3
+#    ports:
+#      - "5001:8081"
+#    volumes:
+#      - /var/www/data:/projects
+#      - /var/www/data:/data
+#    environment:
+#      - QGIS_MAX_PROCESSES=3
+#      - APACHE_LIMIT_REQUEST_LINE=1048576
+#    depends_on:
+#      - django_geo_test_db
+
+  mapproxy:
+    restart: always
+    image: kartoza/mapproxy
+    volumes:
+      - /var/www/data/cache_data=/mapproxy/cache_data
+      - /var/www/data/cache_config=/mapproxy/config
+    environment:
+      - MANAGER_WORKERS=2
+      - MAPPROXY_WORKERS=1
+      - CONFIGS_DIR=/mapproxy/config
+      - BASE_DIR=/mapproxy/cache_data
+      - WMS_SRC_URL=http://localhost:5001
+      - WMS_PROJECTS_ROOT=/
+    ports:
+      - "5002:8082"
+    depends_on:
+      - qgis-server
+
+volumes:
+  postgres_data:
+    driver: local
+  static:
+    driver: local
+  media:
+    driver: local
+  web:
+    driver: local
+  geoserver_data:
+    driver: local
+  qgis_data:
+    driver: local
+  mapproxy_data:
+    driver: local
+
+networks:
+  django_geo_test_network:
+    driver: bridge

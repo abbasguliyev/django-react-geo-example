@@ -1,0 +1,41 @@
+services:
+  demo:
+  tms:
+  kml:
+  wmts:
+  wms:
+    srs: ['EPSG:4326', 'EPSG:3857']
+    image_formats: ['image/jpeg', 'image/png']
+    md:
+      title: MapProxy WMS Proxy
+      abstract: This is a minimal MapProxy example.
+      online_resource: http://example.org/mapproxy
+
+layers:
+  - name: mylayer
+    title: My Layer
+    sources: [mycache]
+
+caches:
+  mycache:
+    grids: [GLOBAL_MERCATOR]
+    sources: [mywms]
+
+sources:
+  mywms:
+    type: wms
+    req:
+      url: http://localhost:8080/geoserver/wms
+      layers: mylayer
+
+grids:
+  GLOBAL_MERCATOR:
+    base: GLOBAL_WEBMERCATOR
+    srs: 'EPSG:3857'
+
+globals:
+  image:
+    resampling_method: bilinear
+  cache:
+    base_dir: '/mapproxy/cache_data'
+    lock_dir: '/mapproxy/lock_data'
