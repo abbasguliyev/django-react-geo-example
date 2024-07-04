@@ -1,0 +1,8 @@
+.venv
+venv
+.idea
+idea
+.venv/
+.idea/
+node_modules
+node_modules/
